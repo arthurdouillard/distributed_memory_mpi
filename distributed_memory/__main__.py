@@ -2,9 +2,11 @@ import argparse
 import logging
 import sys
 
-from .master import Master
+from mpi4py import MPI
 
-logging.basicConfig(level=logging.DEBUG)
+from .master import Master
+from .collector import Collector
+
 
 def parse_args(argv):
     """Parse arguments and call the Master.
@@ -13,13 +15,16 @@ def parse_args(argv):
         $ python -m distributed_memory -h
     """
     parser = argparse.ArgumentParser(description='test')
-    parser.add_argument('-l', '--low', action='store', type=int, dest='low',
+    parser.add_argument('--low', action='store', type=int, dest='low',
+                        default=-1000,
                         help='Lowest possible value of the random array.')
-    parser.add_argument('-h', '--high', action='store', type=int, dest='high',
+    parser.add_argument('--high', action='store', type=int, dest='high',
+                        default=1000,
                         help='Highest possible value of the random array.')
-    parser.add_argument('-s', '--size', action='store', type=int, dest='size',
+    parser.add_argument('--size', action='store', type=int, dest='size',
+                        default=10,
                         help='Size of the random array')
-    parser.add_argument('-l', '--log', action='store', type=str, dest='log',
+    parser.add_argument('--log', action='store', type=str, dest='log',
                         choices=['critical', 'debug', 'info'],
                         default='critical', help='Log level')
 
@@ -32,8 +37,15 @@ def parse_args(argv):
     elif args.log == 'info':
         logging.basicConfig(level=logging.INFO)
 
-    master = Master(range_vals=(args.low, args.high), size=args.size)
+    if MPI.COMM_WORLD.Get_rank() == 0:
+        master = Master(range_vals=(args.low, args.high), size=args.size)
+        master.sort()
+    else:
+        collector = Collector()
+        collector.logic()
 
 
 if __name__ == '__main__':
+    assert MPI.COMM_WORLD.Get_size() > 1, 'Provide at least two processus.'
+
     parse_args(sys.argv[1:])
