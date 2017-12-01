@@ -1,11 +1,12 @@
+#!/usr/bin/env python3
+
 import argparse
 import logging
 import sys
 
 from mpi4py import MPI
 
-from .master import Master
-from .collector import Collector
+import distributed_memory as dm
 
 
 def parse_args(argv):
@@ -24,6 +25,8 @@ def parse_args(argv):
     parser.add_argument('--size', action='store', type=int, dest='size',
                         default=10,
                         help='Size of the random array')
+    parser.add_argument('--mem', action='store', type=int, dest='mem',
+                        default=10, help='Max size in elements for each processus.')
     parser.add_argument('--log', action='store', type=str, dest='log',
                         choices=['critical', 'debug', 'info'],
                         default='critical', help='Log level')
@@ -37,12 +40,19 @@ def parse_args(argv):
     elif args.log == 'info':
         logging.basicConfig(level=logging.INFO)
 
-    if MPI.COMM_WORLD.Get_rank() == 0:
-        master = Master(range_vals=(args.low, args.high), size=args.size)
-        master.sort()
-    else:
-        collector = Collector()
-        collector.logic()
+    mem = dm.init_memory(max_per_slave=args.mem)
+    sort(mem, args)
+
+
+def sort(mem, args):
+    var1= mem.add(1)
+    var2 = mem.add(2)
+
+    print(var1, var2)
+
+    print(mem.read(var1), mem.read(var2))
+
+    mem.quit()
 
 
 if __name__ == '__main__':
