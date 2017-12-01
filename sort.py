@@ -49,7 +49,6 @@ def sort(mem, args):
     var2 = mem.add(2)
 
     print(var1, var2)
-
     print(mem.read(var1), mem.read(var2))
 
     mem.quit()

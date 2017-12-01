@@ -51,10 +51,11 @@ class Collector:
 
     def allocate_var(self, value):
         self.log('Alloc: new id: {}'.format(self.__counter))
-        self.__vars[self.__counter] = value
+        var_name = '{}-{}'.format(self.rank, self.__counter)
+        self.__vars[var_name] = value
         self.__counter += 1
 
-        return '{}-{}'.format(self.rank, self.__counter-1)
+        return var_name
 
 
     def read_var(self, var_id):

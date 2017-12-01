@@ -55,7 +55,7 @@ class Memory:
         self.log('Reading {}.'.format(var_name))
 
         slave_id = self.vars_env[var_name]
-        self.comm.isend(0, dest=slave_id, tag=Tags.read)
+        self.comm.isend(var_name, dest=slave_id, tag=Tags.read)
 
         var = self.comm.recv(source=slave_id, tag=Tags.read)
         return var
@@ -81,7 +81,6 @@ class Memory:
         # Remove any info related to @var_name while send is processing.
         self.slaves_tracking[slave_id] -= 1
         del self.vars_env[var_name]
-
         req.wait()
 
 
