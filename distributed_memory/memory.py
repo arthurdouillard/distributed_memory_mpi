@@ -44,31 +44,59 @@ class Memory:
 
         # Choosing the slave - strategy to improve TODO
         var_size = 1 if isinstance(var, int) else len(var)
-
-        """
+        selected_slaves = []
         for slave_id in range(1, self.nb_slaves+1):
-            if self.slaves_tracking[slave_id] !=
-        """
-        slave_id = random.randint(1, self.nb_slaves)
-        self.comm.isend(var, dest=slave_id, tag=Tags.alloc)
+            if self.slaves_tracking[slave_id] + var_size < self.max_per_slave:
+                selected_slaves = [(slave_id, var_size)]
+                break # Try to fit the whole variable into a single slave
+        else: # Place portion of the variable into several slaves
+            smallest_slaves = sorted(self.slaves_tracking.items(), key=lambda x: x[1])
+            for (slave_id, size) in smallest_slaves:
+                remaining_size = self.max_per_slave - size
 
-        self.slaves_tracking[slave_id] += 1
+                if remaining_size == 0 and var_size > 0:
+                    raise Exception("""Not enough memory! 1""")
+
+                amount_stored = min(var_size, remaining_size)
+                var_size -= amount_stored
+                selected_slaves.append((slave_id, amount_stored))
+
+                if var_size == 0:
+                    break
+            else:
+                raise Exception("""Not enough memory! 2""")
+
+        for slave_id, amount in selected_slaves:
+            self.comm.isend(var, dest=slave_id, tag=Tags.alloc)
+            self.slaves_tracking[slave_id] += amount
 
         # Gathering the id associated to the newly allocated variable
-        var_id = self.comm.recv(source=slave_id, tag=Tags.alloc)
-        self.vars_env[var_id] = slave_id
+        var_ids = []
+        for slave_id, _ in selected_slaves:
+            var_id = self.comm.recv(source=slave_id, tag=Tags.alloc)
+            self.vars_env[var_id] = slave_id
+            var_ids.append(var_id)
 
-        return var_id
+        print('add', var_ids)
+        return var_ids
 
 
     @log('Read')
-    def read(self, var_name):
+    def read(self, var_names):
         """Read a variable @var_name from the distributed memory."""
-        slave_id = self.vars_env[var_name]
-        self.comm.isend(var_name, dest=slave_id, tag=Tags.read)
 
-        var = self.comm.recv(source=slave_id, tag=Tags.read)
-        return var
+        values = []
+
+        for var_name in var_names:
+            slave_id = self.vars_env[var_name]
+            self.comm.isend(var_name, dest=slave_id, tag=Tags.read)
+            var = self.comm.recv(source=slave_id, tag=Tags.read)
+            if isinstance(var, int):
+                values.append(var)
+            else:
+                values.extend(var)
+
+        return values
 
 
     @log('Modify')
