@@ -66,9 +66,13 @@ class Memory:
             else:
                 raise Exception("""Not enough memory! 2""")
 
+        accumulated_amount = 0
         for slave_id, amount in selected_slaves:
-            self.comm.isend(var, dest=slave_id, tag=Tags.alloc)
+            self.comm.isend(var[accumulated_amount:amount+accumulated_amount],
+                            dest=slave_id, tag=Tags.alloc)
+
             self.slaves_tracking[slave_id] += amount
+            accumulated_amount += amount
 
         # Gathering the id associated to the newly allocated variable
         var_ids = []
@@ -77,7 +81,6 @@ class Memory:
             self.vars_env[var_id] = slave_id
             var_ids.append(var_id)
 
-        print('add', var_ids)
         return var_ids
 
 
