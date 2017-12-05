@@ -5,7 +5,7 @@ import mpi4py
 import numpy as np
 
 from .tags import Tags
-
+from .clock import Clock
 
 class Collector:
     def __init__(self):
@@ -13,6 +13,7 @@ class Collector:
         self.rank = self.comm.Get_rank()
         self.size = self.comm.Get_size()
 
+        self.clock = Clock()
         self.__counter = 0
         self.__vars = dict()
         self.log = logging.getLogger(' SLAVE-{}'.format(self.rank)).debug
@@ -61,10 +62,7 @@ class Collector:
     def read_var(self, var_id):
         self.log('Read: Id: {}.'.format(var_id))
 
-        val = self.__vars.get(var_id, None)
-        self.log('Read: Val: {}.'.format(val))
-
-        return val
+        return self.__vars[var_id]
 
 
     def modify_var(self, var_id, new_value):
