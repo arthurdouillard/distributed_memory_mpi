@@ -1,4 +1,4 @@
-import logging
+""""Module for custom logging of class' methods."""
 
 def log(msg):
     def wrapper(f):
