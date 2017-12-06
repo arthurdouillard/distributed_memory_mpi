@@ -8,7 +8,7 @@ import numpy as np
 import dill
 
 from .tags import Tags
-from .clock import Clock
+from .clock import Clock, clock
 from .logger import log
 
 class Collector:
@@ -23,6 +23,7 @@ class Collector:
         self.log = logging.getLogger(' SLAVE-{}'.format(self.rank)).debug
 
 
+    @clock
     @log('Running...')
     def run(self):
         while True:
@@ -59,6 +60,7 @@ class Collector:
                 raise ValueError("""Unkown tag {}:{}.""".format(tag, action))
 
 
+    @clock
     @log('Reducing')
     def reduce(self, var_names, fun_dump, initial_value):
         fun = dill.loads(fun_dump)
@@ -79,6 +81,7 @@ class Collector:
             return (var_names, fun_dump, initial_value), dest
 
 
+    @clock
     @log('Mapping')
     def map(self, var_name, fun):
         value = self.__vars[var_name]
@@ -89,6 +92,7 @@ class Collector:
                 value[i] = fun(value[i])
 
 
+    @clock
     @log('Filtering')
     def filter(self, var_name, fun):
         value = self.__vars[var_name]
@@ -109,6 +113,7 @@ class Collector:
             return diff_len, True
 
 
+    @clock
     @log('Allocating')
     def allocate_var(self, value):
         var_name = '{}-{}'.format(self.rank, self.__counter)
@@ -118,11 +123,13 @@ class Collector:
         return var_name
 
 
+    @clock
     @log('Reading')
     def read_var(self, var_id):
         return self.__vars[var_id]
 
 
+    @clock
     @log('Modifying')
     def modify_var(self, var_id, new_value):
         if var_id in self.__vars:
@@ -134,6 +141,7 @@ class Collector:
         return False
 
 
+    @clock
     @log('Freeing')
     def free_var(self, var_name):
         value = self.__vars.pop(var_name)
@@ -152,6 +160,8 @@ class Collector:
 
         return int(var_name.split('-')[0])
 
+
+    @clock
     @log('Exiting')
     def quit(self, exit_code=0):
         exit(exit_code)
