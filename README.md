@@ -12,6 +12,6 @@
 - [X] Storing huge list over several collectors
 - [X] Map
 - [X] Filter
-- [ ] Reduce
-- [ ] Commenting
+- [X] Reduce
+- [X] Commenting
 - [X] Fix logging
