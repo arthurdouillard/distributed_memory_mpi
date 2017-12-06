@@ -10,6 +10,8 @@
 - [X] Strategy to choose slave
 - [ ] Lamport clock
 - [X] Storing huge list over several collectors
-- [ ] Sorting in parallel
+- [X] Map
+- [X] Filter
+- [ ] Reduce
 - [ ] Commenting
 - [X] Fix logging
