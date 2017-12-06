@@ -1,3 +1,5 @@
+""""Module implementing an enum-like object used for tags in MPI's messages."""
+
 class Tags:
     alloc = 0
     read = 1
@@ -11,6 +13,7 @@ class Tags:
 
     @classmethod
     def name(cls, i):
+        """Get enum string name by its value."""
         for k, v in cls.__dict__.items():
             if not k.startswith('__') and v == i:
                 return k
@@ -20,4 +23,5 @@ class Tags:
 
     @classmethod
     def get_id(cls, name):
+        """Get enum value by its string name."""
         return cls.__dict__[name]
