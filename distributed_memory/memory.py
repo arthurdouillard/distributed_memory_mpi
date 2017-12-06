@@ -141,6 +141,18 @@ class Memory:
             self.comm.isend(msg, dest=slave_id, tag=Tags.filter)
 
 
+    @log('Reduce')
+    def reduce(self, var_names, fun, initial_value):
+        slave_id_first = Collector.get_slave_id(var_names[0])
+        slave_id_last = Collector.get_slave_id(var_names[-1])
+
+        msg = (var_names, dill.dumps(fun), initial_value)
+
+        self.comm.isend(msg, dest=slave_id_first, tag=Tags.reduce)
+        val = self.comm.recv(source=slave_id_last, tag=Tags.reduce)
+        return val
+
+
     @log('Quit')
     def quit(self):
         """Close each slave then itself."""

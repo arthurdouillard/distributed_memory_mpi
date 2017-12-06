@@ -48,10 +48,33 @@ class Collector:
                 self.map(msg[0], dill.loads(msg[1]))
             elif action == 'filter':
                 self.filter(msg[0], dill.loads(msg[1]))
+            elif action == 'reduce':
+                msg, next_dest = self.reduce(msg[0], msg[1], msg[2])
+                self.comm.send(msg, dest=next_dest, tag=Tags.reduce)
             elif action == 'quit':
                 self.quit()
             else:
                 raise ValueError("""Unkown tag {}:{}.""".format(tag, action))
+
+
+    @log('Reducing')
+    def reduce(self, var_names, fun_dump, initial_value):
+        fun = dill.loads(fun_dump)
+        var_name = var_names[0]
+        value = self.__vars[var_name]
+
+        if isinstance(value, int):
+            initial_value = fun(initial_value, value)
+        else:
+            for v in value:
+                initial_value = fun(initial_value, v)
+
+        var_names = var_names[1:]
+        if len(var_names) == 0:
+            return initial_value, 0
+        else:
+            dest = Collector.get_slave_id(var_names[0])
+            return (var_names, fun_dump, initial_value), dest
 
 
     @log('Mapping')
@@ -104,6 +127,14 @@ class Collector:
         for var_id in var_ids:
             self.__vars.pop(var_id, None)
 
+
+    @classmethod
+    def get_slave_id(self, var_name):
+        if not isinstance(var_name, str):
+            raise ValueError("""The var_name must be a 'str'
+                                not a {}.""".format(type(var_name).__name__))
+
+        return int(var_name.split('-')[0])
 
     @log('Exiting')
     def quit(self, exit_code=0):
