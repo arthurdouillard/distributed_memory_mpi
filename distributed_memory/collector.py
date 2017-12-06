@@ -43,11 +43,13 @@ class Collector:
                 self.comm.send(self.modify_var(msg[0], msg[1]), dest=source,
                                tag=tag)
             elif action == 'free':
-                self.free_var(msg)
+                nb_freed = self.free_var(msg)
+                self.comm.send(nb_freed, dest=source, tag=tag)
             elif action == 'map':
                 self.map(msg[0], dill.loads(msg[1]))
             elif action == 'filter':
-                self.filter(msg[0], dill.loads(msg[1]))
+                diff_len, presence = self.filter(msg[0], dill.loads(msg[1]))
+                self.comm.send((diff_len, presence), dest=source, tag=tag)
             elif action == 'reduce':
                 msg, next_dest = self.reduce(msg[0], msg[1], msg[2])
                 self.comm.send(msg, dest=next_dest, tag=Tags.reduce)
@@ -92,9 +94,19 @@ class Collector:
         value = self.__vars[var_name]
         if isinstance(value, int):
             if not fun(value):
-                self.free_var(var_name)
+                self.__vars.pop(var_name)
+                return 1, False
+            return 0, True
         else:
+            original_len = len(self.__vars[var_name])
             self.__vars[var_name] = list(filter(fun, value))
+
+            new_len = len(self.__vars[var_name])
+            diff_len = original_len - new_len
+            if new_len == 0:
+                self.__vars.pop(var_name)
+                return diff_len, False
+            return diff_len, True
 
 
     @log('Allocating')
@@ -123,9 +135,13 @@ class Collector:
 
 
     @log('Freeing')
-    def free_var(self, *var_ids):
-        for var_id in var_ids:
-            self.__vars.pop(var_id, None)
+    def free_var(self, var_name):
+        value = self.__vars.pop(var_name)
+
+        if isinstance(value, int):
+            return 1
+        else:
+            return len(value)
 
 
     @classmethod
