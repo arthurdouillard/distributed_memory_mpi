@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import random
 import sys
 
 from mpi4py import MPI
@@ -45,14 +46,17 @@ def parse_args(argv):
 
 
 def sort(mem, args):
-    var1= mem.add(1)
-    var2 = mem.add(2)
+    l = list(range(15))
+    #random.shuffle(l)
+    l_name = mem.add(l)
 
-    print(var1, var2)
-    print(mem.read(var1), mem.read(var2))
+    print(mem.read(l_name))
+
+    print('local:', sum(l))
+
+    print('mpi', mem.reduce(l_name, lambda x, y: x + y, 0))
 
     mem.quit()
-
 
 if __name__ == '__main__':
     assert MPI.COMM_WORLD.Get_size() > 1, 'Provide at least two processus.'
