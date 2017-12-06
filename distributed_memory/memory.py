@@ -6,6 +6,7 @@ import random
 from mpi4py import MPI
 import numpy as np
 import mmh3
+import dill
 
 from .tags import Tags
 from .collector import Collector
@@ -124,38 +125,20 @@ class Memory:
         req.wait()
 
 
-    @log('Sort')
-    def sort(self, var_names, order='lt'):
-        if order not in ['lt', 'gt']:
-            raise ValueError("""Order must be either 'lt' (<) or 'gt' ('>'),
-                                not {}.""".format(order))
-        tag = Tags.get_id(order)
+    @log('Map')
+    def map(self, var_names, fun):
+        for var_name in var_names:
+            slave_id = self.vars_env[var_name]
+            msg = (var_name, dill.dumps(fun))
+            self.comm.isend(msg, dest=slave_id, tag=Tags.map)
 
-        curr_extremum = -float('inf')
-        up_slaves = [True for _ in range(self.nb_slaves)]
 
-        while any(up_slaves):
-            for slave_id, is_up in enumerate(up_slaves):
-                if is_up:
-                    self.comm.isend((var_names[slave_id+1], curr_extremum),
-                                    dest=slave_id+1, tag=tag)
-
-            local_array = []
-            for slave_id, is_up in enumerate(up_slaves):
-                if is_up:
-                    small_array = self.comm.recv(source=slave_id+1, tag=tag)
-                    if small_array is None:
-                        up_slaves[slave_id] = False
-                        continue
-
-                for val in small_array:
-                    heapq.heappush(local_array, val)
-
-            for val in local_array:
-                yield val
-
-            curr_extremum = local_array[-1]
-
+    @log('Filter')
+    def filter(self, var_names, fun):
+        for var_name in var_names:
+            slave_id = self.vars_env[var_name]
+            msg = (var_name, dill.dumps(fun))
+            self.comm.isend(msg, dest=slave_id, tag=Tags.filter)
 
 
     @log('Quit')

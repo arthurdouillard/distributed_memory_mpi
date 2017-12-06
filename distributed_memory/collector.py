@@ -1,11 +1,15 @@
 import logging
+import operator as op
+import heapq
 
 from mpi4py import MPI
 import mpi4py
 import numpy as np
+import dill
 
 from .tags import Tags
 from .clock import Clock
+from .logger import log
 
 class Collector:
     def __init__(self):
@@ -19,6 +23,7 @@ class Collector:
         self.log = logging.getLogger(' SLAVE-{}'.format(self.rank)).debug
 
 
+    @log('Running...')
     def run(self):
         while True:
             status = MPI.Status()
@@ -28,8 +33,6 @@ class Collector:
             source = status.Get_source()
             tag = status.Get_tag()
             action = Tags.name(tag)
-
-            self.log('Recv: Tag: {} Source: {}.'.format(tag, source))
 
             if action == 'alloc':
                 new_id = self.allocate_var(msg)
@@ -41,17 +44,38 @@ class Collector:
                                tag=tag)
             elif action == 'free':
                 self.free_var(msg)
+            elif action == 'map':
+                self.map(msg[0], dill.loads(msg[1]))
+            elif action == 'filter':
+                self.filter(msg[0], dill.loads(msg[1]))
             elif action == 'quit':
-                self.log('exiting...')
-                exit(0)
+                self.quit()
             else:
-                logging.critical('Unkown tag {}:{}.'.format(tag, action))
-                raise ValueError('Unkown tag {}:{}.'.format(tag, action))
+                raise ValueError("""Unkown tag {}:{}.""".format(tag, action))
 
 
+    @log('Mapping')
+    def map(self, var_name, fun):
+        value = self.__vars[var_name]
+        if isinstance(value, int):
+            self.__vars[var_name] = fun(value)
+        else:
+            for i in range(len(value)):
+                value[i] = fun(value[i])
 
+
+    @log('Filtering')
+    def filter(self, var_name, fun):
+        value = self.__vars[var_name]
+        if isinstance(value, int):
+            if not fun(value):
+                self.free_var(var_name)
+        else:
+            self.__vars[var_name] = list(filter(fun, value))
+
+
+    @log('Allocating')
     def allocate_var(self, value):
-        self.log('Alloc: new id: {}'.format(self.__counter))
         var_name = '{}-{}'.format(self.rank, self.__counter)
         self.__vars[var_name] = value
         self.__counter += 1
@@ -59,15 +83,13 @@ class Collector:
         return var_name
 
 
+    @log('Reading')
     def read_var(self, var_id):
-        self.log('Read: Id: {}.'.format(var_id))
-
         return self.__vars[var_id]
 
 
+    @log('Modifying')
     def modify_var(self, var_id, new_value):
-        self.log('Modify: Id: {} Val: {}'.format(var_id, new_value))
-
         if var_id in self.__vars:
             self.__vars[var_id] = new_value
             self.log('Modify: Value changed.')
@@ -77,8 +99,12 @@ class Collector:
         return False
 
 
+    @log('Freeing')
     def free_var(self, *var_ids):
-        self.log('Free: {} values.'.format(len(var_ids)))
-
         for var_id in var_ids:
             self.__vars.pop(var_id, None)
+
+
+    @log('Exiting')
+    def quit(self, exit_code=0):
+        exit(exit_code)

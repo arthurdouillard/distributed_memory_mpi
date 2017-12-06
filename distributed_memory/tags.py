@@ -5,8 +5,9 @@ class Tags:
     free = 3
     sort = 4
     quit = 5
-    lt = 6
-    gt = 7
+    map = 6
+    reduce = 7
+    filter = 8
 
     @classmethod
     def name(cls, i):
