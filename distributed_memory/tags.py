@@ -5,6 +5,8 @@ class Tags:
     free = 3
     sort = 4
     quit = 5
+    lt = 6
+    gt = 7
 
     @classmethod
     def name(cls, i):
@@ -13,3 +15,8 @@ class Tags:
                 return k
 
         raise ValueError('Value {} not found in {}.'.format(i, cls))
+
+
+    @classmethod
+    def get_id(cls, name):
+        return cls.__dict__[name]
