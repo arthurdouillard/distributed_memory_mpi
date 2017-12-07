@@ -4,7 +4,7 @@ LOG= critical
 
 
 demo:
-	${CMD} demo.py} --log ${LOG}
+	${CMD} demo.py --log ${LOG}
 
 
 test:
