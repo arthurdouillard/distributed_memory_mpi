@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import random
+
 import distributed_memory as dm
 
 mem = None
@@ -56,20 +58,22 @@ def test_modify_int():
 @test
 def test_modify_list_small():
     var = mem.add([1, 2, 3])
-    b = mem.modify(var, [1, 6, 7, 8])
+    b = mem.modify(var, 42, index=2)
     assert b == True
     value = mem.read(var)
-    assert value == [1, 6, 7, 8]
+    assert value == [1, 2, 42]
     mem.free(var)
 
 
 @test
 def test_modify_list_big():
     var = mem.add(list(range(15)))
-    b = mem.modify(var, list(range(5)))
+    b = mem.modify(var, 42, index=12)
     assert b == True
     value = mem.read(var)
-    assert value == list(range(5))
+    l = list(range(15))
+    l[12] = 42
+    assert value == l
     mem.free(var)
 
 
@@ -95,6 +99,17 @@ def test_free_big_list():
     mem.free(var)
     assert not var
     assert len(var.var_names) == 0
+
+
+@test
+def test_free_many():
+    for _ in range(100):
+        i = random.randint(1, 17)
+        var = mem.add(list(range(i)))
+        assert var
+        mem.free(var)
+        assert not var
+        assert all(v == 0 for v in mem.slaves_tracking.values())
 
 
 @test
@@ -175,6 +190,7 @@ def main():
     test_free_int()
     test_free_small_list()
     test_free_big_list()
+    test_free_many()
     test_map_small_list()
     test_map_big_list()
     test_reduce_small_list()
