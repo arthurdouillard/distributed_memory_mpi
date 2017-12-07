@@ -40,7 +40,7 @@ class Collector:
             elif action == 'read':
                 self.comm.send(self.read_var(msg), dest=source, tag=tag)
             elif action == 'modify':
-                self.comm.send(self.modify_var(msg[0], msg[1], msg[2]),
+                self.comm.send(self.modify_var(msg[0], msg[1], msg[2], msg[3]),
                                dest=source, tag=tag)
             elif action == 'free':
                 nb_freed = self.free_var(msg)
@@ -124,8 +124,8 @@ class Collector:
 
 
     @log('Modifying')
-    def modify_var(self, var_name, new_value, time_master):
-        if var_name in self.__vars: # Variable exists
+    def modify_var(self, var_name, new_value, index, time_master):
+        if var_name in self.__vars and isinstance(self.__vars[var_name], int):
             if var_name in self.__modif_history and\
                (time_master < self.__modif_history[var_name][0] or\
                  not self.__modif_history[var_name][1]) :
@@ -136,8 +136,19 @@ class Collector:
             self.__modif_history[var_name] = [time.time(), True]
 
             return True
+        elif var_name in self.__vars and isinstance(self.__vars[var_name], list):
+            if var_name in self.__modif_history and\
+               (time_master < self.__modif_history[var_name][0] or\
+                 not self.__modif_history[var_name][1]) :
+                 return False
 
-        return False
+            self.__modif_history[var_name] = [time.time(), False]
+            self.__vars[var_name][index] = new_value
+            self.__modif_history[var_name] = [time.time(), True]
+
+            return True
+        else:
+            return False
 
 
     @log('Freeing')

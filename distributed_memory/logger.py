@@ -4,7 +4,7 @@ def log(msg):
     def wrapper(f):
         def wrap(self, *args, **kwargs):
             self.log(pretty_log(msg, self, args, kwargs))
-            return f(self, *args, *kwargs)
+            return f(self, *args, **kwargs)
         return wrap
     return wrapper
 

@@ -15,8 +15,10 @@ from .logger import log
 
 
 class Variable:
-    def __init__(self, var_names):
+    def __init__(self, var_names, var_type):
         self.var_names = var_names
+        self.var_type = var_type
+
 
     def __bool__(self):
         return len(self.var_names) > 0
@@ -62,7 +64,7 @@ class Memory:
         self.nb_slaves = self.comm.Get_size() - 1 # Minus Master
         self.max_per_slave = max_per_slave
         self.slaves_tracking = collections.defaultdict(int)
-        self.vars_env = dict()
+        self.list_tracking = dict()
 
 
     @log('Add')
@@ -110,21 +112,29 @@ class Memory:
             self.comm.isend(var, dest=slave_id, tag=Tags.alloc)
             self.slaves_tracking[slave_id] += 1
         else: # List
+            tmp_list_tracking = []
             for slave_id, amount in selected_slaves:
-                self.comm.isend(var[accumulated_amount:amount+accumulated_amount],
+                low_bound = accumulated_amount
+                high_bound = accumulated_amount + amount
+
+                tmp_list_tracking.append((low_bound, high_bound-1))
+
+                self.comm.isend(var[low_bound:high_bound],
                                 dest=slave_id, tag=Tags.alloc)
 
                 self.slaves_tracking[slave_id] += amount
                 accumulated_amount += amount
 
         # Gathering the id associated to the newly allocated variable
-        var_ids = []
-        for slave_id, _ in selected_slaves:
-            var_id = self.comm.recv(source=slave_id, tag=Tags.alloc)
-            self.vars_env[var_id] = slave_id
-            var_ids.append(var_id)
+        var_names = []
+        for i, (slave_id, _) in enumerate(selected_slaves):
+            var_name = self.comm.recv(source=slave_id, tag=Tags.alloc)
+            var_names.append(var_name)
 
-        return Variable(var_ids)
+            if isinstance(var, list):
+                self.list_tracking[var_name] = tmp_list_tracking[i]
+
+        return Variable(var_names, type(var))
 
 
     @log('Read')
@@ -155,7 +165,7 @@ class Memory:
 
 
     @log('Modify')
-    def modify(self, var, new_value):
+    def modify(self, var, new_value, index=None):
         """Modify an existing variable @var_name with the value @new_value.
 
         var       -- `Variable` instance
@@ -170,18 +180,37 @@ class Memory:
         >>> mem.read(var)
         1337
         """
-        if len(var.var_names) == 1:
+        if not isinstance(new_value, int):
+            raise ValueError("""@new_value must be of type `int`
+                                not {}.""".format(type(new_value).__name__))
+
+        if var.var_type == int:
             slave_id = Collector.get_slave_id(var.var_names[0])
-            self.comm.send((var.var_names[0], new_value, time.time()),
+            self.comm.send((var.var_names[0], new_value, index, time.time()),
                            dest=slave_id, tag=Tags.modify)
 
             return self.comm.recv(source=slave_id, tag=Tags.modify)
         else:
-            self.free(var)
-            tmp_var = self.add(new_value)
-            var.var_names = tmp_var.var_names
+            if not isinstance(index, int):
+                raise ValueError("""Index must be an integer
+                                    not {}.""".format(type(index).__name__))
 
-            return True
+            accumulated_index = 0
+            for var_i, var_name in enumerate(var.var_names):
+                low_bound, high_bound = self.list_tracking[var_name]
+                if low_bound <= index <= high_bound:
+                    if var_i != 0:
+                        index = index - accumulated_index - 1
+                    slave_id = Collector.get_slave_id(var_name)
+
+                    self.comm.send((var_name, new_value, index, time.time()),
+                                   dest=slave_id, tag=Tags.modify)
+
+                    return self.comm.recv(source=slave_id, tag=Tags.modify)
+                else:
+                    accumulated_index += high_bound
+
+        raise Exception("""Out of bounds error with index {}.""".format(index))
 
 
     @log('Free')
@@ -206,6 +235,7 @@ class Memory:
             nb_freed = self.comm.recv(source=slave_id, tag=Tags.free)
             # Remove any info related to @var_name while send is processing.
             self.slaves_tracking[slave_id] -= nb_freed
+            self.list_tracking.pop(var_name, None)
 
         var.var_names = []
 
@@ -227,6 +257,7 @@ class Memory:
             slave_id = Collector.get_slave_id(var_name)
             msg = (var_name, dill.dumps(fun))
             self.comm.isend(msg, dest=slave_id, tag=Tags.map)
+
 
     @log('Filter')
     def filter(self, var, fun):
