@@ -1,15 +1,15 @@
-import logging
-import operator as op
-import heapq
+"""This module implements a `Collector` which host a subset of the distributed
+memory."""
+
 import time
+import logging
 
 from mpi4py import MPI
-import mpi4py
-import numpy as np
 import dill
 
 from .tags import Tags
 from .logger import log
+
 
 class Collector:
     def __init__(self):
