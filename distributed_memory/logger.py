@@ -12,7 +12,7 @@ def log(msg):
 def pretty_log(msg, self, *args):
     args, kwargs = args[0], args[1]
 
-    pretty_msg = ' Clock: {}: {}'.format(self.clock.timer, msg)
+    pretty_msg = ' {}'.format(msg)
 
     arg, kwarg = '', ''
     if len(args) != 0:

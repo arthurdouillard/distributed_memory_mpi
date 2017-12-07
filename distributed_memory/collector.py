@@ -1,6 +1,7 @@
 import logging
 import operator as op
 import heapq
+import time
 
 from mpi4py import MPI
 import mpi4py
@@ -8,7 +9,6 @@ import numpy as np
 import dill
 
 from .tags import Tags
-from .clock import Clock, clock
 from .logger import log
 
 class Collector:
@@ -17,13 +17,12 @@ class Collector:
         self.rank = self.comm.Get_rank()
         self.size = self.comm.Get_size()
 
-        self.clock = Clock()
         self.__counter = 0
         self.__vars = dict()
+        self.__modif_history = dict()
         self.log = logging.getLogger(' SLAVE-{}'.format(self.rank)).debug
 
 
-    @clock
     @log('Running...')
     def run(self):
         while True:
@@ -41,8 +40,8 @@ class Collector:
             elif action == 'read':
                 self.comm.send(self.read_var(msg), dest=source, tag=tag)
             elif action == 'modify':
-                self.comm.send(self.modify_var(msg[0], msg[1]), dest=source,
-                               tag=tag)
+                self.comm.send(self.modify_var(msg[0], msg[1], msg[2]),
+                               dest=source, tag=tag)
             elif action == 'free':
                 nb_freed = self.free_var(msg)
                 self.comm.send(nb_freed, dest=source, tag=tag)
@@ -60,7 +59,6 @@ class Collector:
                 raise ValueError("""Unkown tag {}:{}.""".format(tag, action))
 
 
-    @clock
     @log('Reducing')
     def reduce(self, var_names, fun_dump, initial_value):
         fun = dill.loads(fun_dump)
@@ -81,7 +79,6 @@ class Collector:
             return (var_names, fun_dump, initial_value), dest
 
 
-    @clock
     @log('Mapping')
     def map(self, var_name, fun):
         value = self.__vars[var_name]
@@ -92,7 +89,6 @@ class Collector:
                 value[i] = fun(value[i])
 
 
-    @clock
     @log('Filtering')
     def filter(self, var_name, fun):
         value = self.__vars[var_name]
@@ -113,7 +109,6 @@ class Collector:
             return diff_len, True
 
 
-    @clock
     @log('Allocating')
     def allocate_var(self, value):
         var_name = '{}-{}'.format(self.rank, self.__counter)
@@ -123,25 +118,28 @@ class Collector:
         return var_name
 
 
-    @clock
     @log('Reading')
-    def read_var(self, var_id):
-        return self.__vars[var_id]
+    def read_var(self, var_name):
+        return self.__vars[var_name]
 
 
-    @clock
     @log('Modifying')
-    def modify_var(self, var_id, new_value):
-        if var_id in self.__vars:
-            self.__vars[var_id] = new_value
-            self.log('Modify: Value changed.')
+    def modify_var(self, var_name, new_value, time_master):
+        if var_name in self.__vars: # Variable exists
+            if var_name in self.__modif_history and\
+               (time_master < self.__modif_history[var_name][0] or\
+                 not self.__modif_history[var_name][1]) :
+                 return False
+
+            self.__modif_history[var_name] = [time.time(), False]
+            self.__vars[var_name] = new_value
+            self.__modif_history[var_name] = [time.time(), True]
+
             return True
 
-        self.log('Modify: Value not found.')
         return False
 
 
-    @clock
     @log('Freeing')
     def free_var(self, var_name):
         value = self.__vars.pop(var_name)
@@ -161,7 +159,6 @@ class Collector:
         return int(var_name.split('-')[0])
 
 
-    @clock
     @log('Exiting')
     def quit(self, exit_code=0):
         exit(exit_code)

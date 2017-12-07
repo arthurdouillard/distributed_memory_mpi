@@ -2,6 +2,7 @@ import collections
 import logging
 import heapq
 import random
+import time
 
 from mpi4py import MPI
 import numpy as np
@@ -10,7 +11,6 @@ import dill
 
 from .tags import Tags
 from .collector import Collector
-from .clock import Clock, clock
 from .logger import log
 
 
@@ -59,14 +59,12 @@ class Memory:
 
         self.comm = MPI.COMM_WORLD
 
-        self.clock = Clock()
         self.nb_slaves = self.comm.Get_size() - 1 # Minus Master
         self.max_per_slave = max_per_slave
         self.slaves_tracking = collections.defaultdict(int)
         self.vars_env = dict()
 
 
-    @clock
     @log('Add')
     def add(self, var):
         """Add a variable @var to the distributed memory.
@@ -129,7 +127,6 @@ class Memory:
         return Variable(var_ids)
 
 
-    @clock
     @log('Read')
     def read(self, var):
         """Read a variable @var_name from the distributed memory.
@@ -157,7 +154,6 @@ class Memory:
         return values
 
 
-    @clock
     @log('Modify')
     def modify(self, var, new_value):
         """Modify an existing variable @var_name with the value @new_value.
@@ -176,7 +172,7 @@ class Memory:
         """
         if len(var.var_names) == 1:
             slave_id = Collector.get_slave_id(var.var_names[0])
-            self.comm.send((var.var_names[0], new_value),
+            self.comm.send((var.var_names[0], new_value, time.time()),
                            dest=slave_id, tag=Tags.modify)
 
             return self.comm.recv(source=slave_id, tag=Tags.modify)
@@ -188,7 +184,6 @@ class Memory:
             return True
 
 
-    @clock
     @log('Free')
     def free(self, var):
         """Free an existing variable @var_name.
@@ -215,7 +210,6 @@ class Memory:
         var.var_names = []
 
 
-    @clock
     @log('Map')
     def map(self, var, fun):
         """Map in-place the function @fun to the variables @var_names.
@@ -234,7 +228,6 @@ class Memory:
             msg = (var_name, dill.dumps(fun))
             self.comm.isend(msg, dest=slave_id, tag=Tags.map)
 
-    @clock
     @log('Filter')
     def filter(self, var, fun):
         """Filter in-place the variables @var_names according to function @fun.
@@ -269,7 +262,6 @@ class Memory:
             var.var_names.remove(var_name)
 
 
-    @clock
     @log('Reduce')
     def reduce(self, var, fun, initial_value):
         """Reduce the variables @var_names with the function @fun.
@@ -293,7 +285,6 @@ class Memory:
         return val
 
 
-    @clock
     @log('Quit')
     def quit(self):
         """Close each slave then itself.
