@@ -107,7 +107,7 @@ class Memory:
                 raise Exception("""Not enough memory! 2""")
 
         accumulated_amount = 0
-        if var_size == 1: # Single integer
+        if isinstance(var, int): # Single integer
             slave_id, _ = selected_slaves[0]
             self.comm.isend(var, dest=slave_id, tag=Tags.alloc)
             self.slaves_tracking[slave_id] += 1
@@ -186,7 +186,7 @@ class Memory:
 
         if var.var_type == int:
             slave_id = Collector.get_slave_id(var.var_names[0])
-            self.comm.send((var.var_names[0], new_value, index, time.time()),
+            self.comm.isend((var.var_names[0], new_value, index, time.time()),
                            dest=slave_id, tag=Tags.modify)
 
             return self.comm.recv(source=slave_id, tag=Tags.modify)
@@ -203,7 +203,7 @@ class Memory:
                         index = index - accumulated_index - 1
                     slave_id = Collector.get_slave_id(var_name)
 
-                    self.comm.send((var_name, new_value, index, time.time()),
+                    self.comm.isend((var_name, new_value, index, time.time()),
                                    dest=slave_id, tag=Tags.modify)
 
                     return self.comm.recv(source=slave_id, tag=Tags.modify)
@@ -231,6 +231,9 @@ class Memory:
         for var_name in var.var_names:
             slave_id = Collector.get_slave_id(var_name)
             self.comm.isend(var_name, dest=slave_id, tag=Tags.free)
+
+        for var_name in var.var_names:
+            slave_id = Collector.get_slave_id(var_name)
 
             nb_freed = self.comm.recv(source=slave_id, tag=Tags.free)
             # Remove any info related to @var_name while send is processing.
