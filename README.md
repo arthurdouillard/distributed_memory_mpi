@@ -13,6 +13,8 @@ of emulated hosts):
 mpiexec -hostfile hostfile -n 5 demo.py
 ```
 
+The distributed memory only works for storing `int` and `list[int]`.
+
 ## Dependencies
 
 - Install [MPI](https://www.open-mpi.org/nightly/v3.0.x/)
@@ -28,8 +30,65 @@ pip3 install -r requirements.txt
 import distributed_memory as dm
 ```
 
-- Initialization:
+**Initialization**:
 
+```
+mem = dm.init_memory(max_per_slave=10)
+# max_per_slave is available memory per hosts
+```
+
+Note: *Your application MUST call `mem.quit()` method at the end in order to exit
+gracefully.*
+
+**Creating a variable**:
+
+```
+var_int = mem.add(42)
+var_list = mem.add([1, 2, 3])
+```
+
+**Reading a variable**:
+
+```
+value_int = mem.read(var_int)
+value_list = mem.read(var_list)
+```
+
+**Modifying a variable**:
+
+Note: *A boolean is returned to inform whether the modification has taken place.*
+
+```
+bool_int = mem.modify(var_int, 1337)
+bool_list = mem.modify(var_list, 42, index=0)
+```
+
+**Reducing a list**:
+
+```
+sum_list = mem.reduce(var_list, lambda x, y: x + y, 0)
+```
+
+**Mapping a list**:
+
+Note: *The mapping may not be finished when the `mem.map` method returns.*
+
+```
+mem.map(var_list, lambda x: x ** 2)
+```
+
+**Filtering a list**:
+
+```
+mem.filter(var_list, lambda x: x % == 0)
+```
+
+**Freeing a variable**:
+
+```
+mem.free(var_int)
+mem.free(var_list)
+```
 
 ## Examples
 
