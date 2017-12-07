@@ -39,6 +39,9 @@ def init_memory(*, max_per_slave):
     >>> mem.read(var1)
     [2, 3, 4]
     """
+    if MPI.COMM_WORLD.Get_size() < 2:
+        raise Exception("""At least 2 hosts are needed.""")
+
     if MPI.COMM_WORLD.Get_rank() == 0:
         return Memory(max_per_slave=max_per_slave)
 
