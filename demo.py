@@ -2,7 +2,6 @@
 
 import argparse
 import logging
-import random
 import sys
 
 from mpi4py import MPI
@@ -16,16 +15,7 @@ def parse_args(argv):
     For help, call:
         $ python -m distributed_memory -h
     """
-    parser = argparse.ArgumentParser(description='test')
-    parser.add_argument('--low', action='store', type=int, dest='low',
-                        default=-1000,
-                        help='Lowest possible value of the random array.')
-    parser.add_argument('--high', action='store', type=int, dest='high',
-                        default=1000,
-                        help='Highest possible value of the random array.')
-    parser.add_argument('--size', action='store', type=int, dest='size',
-                        default=10,
-                        help='Size of the random array')
+    parser = argparse.ArgumentParser(description='Demo of the distributed memory')
     parser.add_argument('--mem', action='store', type=int, dest='mem',
                         default=10, help='Max size in elements for each processus.')
     parser.add_argument('--log', action='store', type=str, dest='log',
@@ -42,19 +32,21 @@ def parse_args(argv):
         logging.basicConfig(level=logging.INFO)
 
     mem = dm.init_memory(max_per_slave=args.mem)
-    sort(mem, args)
+    demo(mem)
 
 
-def sort(mem, args):
-    l = list(range(15))
-    #random.shuffle(l)
-    l_name = mem.add(l)
+def demo(mem):
+    var = mem.add(list(range(10)))
+    print('Initial value:', mem.read(var))
 
-    print(mem.read(l_name))
+    mem.map(var, lambda x: x ** 2)
+    print('After squaring:', mem.read(var))
 
-    print('local:', sum(l))
+    mem.filter(var, lambda x: x % 2 != 0)
+    print('After removing even integer:', mem.read(var))
 
-    print('mpi', mem.reduce(l_name, lambda x, y: x + y, 0))
+    val = mem.reduce(var, lambda x, y: x * y, 1)
+    print('Multiplication of the remaining elements:', val)
 
     mem.quit()
 
