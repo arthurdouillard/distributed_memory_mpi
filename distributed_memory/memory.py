@@ -1,12 +1,10 @@
-import collections
+"""This module is the main Memory that acts as interface between the user and
+the distributed memory."""
+
 import logging
-import heapq
-import random
 import time
 
 from mpi4py import MPI
-import numpy as np
-import mmh3
 import dill
 
 from .tags import Tags
@@ -154,6 +152,9 @@ class Memory:
         >>> mem.read(var2)
         [1, 2, 3]
         """
+        if not var:
+            raise ValueError("""@var is not allocated.""")
+
         values = []
         for var_name in var.var_names:
             slave_id = Collector.get_slave_id(var_name)
