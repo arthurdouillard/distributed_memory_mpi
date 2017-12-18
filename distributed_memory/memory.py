@@ -1,6 +1,7 @@
 """This module is the main Memory that acts as interface between the user and
 the distributed memory."""
 
+import collections
 import logging
 import time
 
