@@ -50,7 +50,7 @@ def demo(mem, size, verbose):
     if verbose:
         print('After removing even integer:', mem.read(var))
 
-    val = mem.reduce(var, lambda x, y: x * y, 0)
+    val = mem.reduce(var, lambda x, y: x * y, 1)
     if verbose:
         print('Multiplication of the remaining elements:', val)
 
