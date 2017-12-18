@@ -115,5 +115,13 @@ print(mem.read(var))
 To launch the tests:
 
 ```
-mpiexec -hostfile hostfile -n 5 tests.py
+mpiexec -hostfile hostfile -n <nb_hosts> tests.py
+```
+
+## Demo
+
+To start the demo:
+
+```
+mpiexec -hostfile -n <nb_hosts> demo.py --size <list_size> --verbose
 ```
