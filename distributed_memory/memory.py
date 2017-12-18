@@ -3,6 +3,7 @@ the distributed memory."""
 
 import collections
 import logging
+import math
 import time
 
 from mpi4py import MPI
@@ -40,6 +41,9 @@ def init_memory(*, max_per_slave):
     """
     if MPI.COMM_WORLD.Get_size() < 2:
         raise Exception("""At least 2 hosts are needed.""")
+
+    if isinstance(max_per_slave, float):
+        max_per_slave = math.ceil(max_per_slave)
 
     if MPI.COMM_WORLD.Get_rank() == 0:
         return Memory(max_per_slave=max_per_slave)
@@ -120,7 +124,6 @@ class Memory:
                 high_bound = accumulated_amount + amount
 
                 tmp_list_tracking.append((low_bound, high_bound-1))
-
                 self.comm.isend(var[low_bound:high_bound],
                                 dest=slave_id, tag=Tags.alloc)
 
